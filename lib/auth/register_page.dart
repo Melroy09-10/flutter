@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import '../widgets/app_widgets.dart';
 import 'google_signin_service.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -48,7 +48,7 @@ class _RegisterPageState extends State<RegisterPage> {
         "createdAt": Timestamp.now(),
       });
 
-      Navigator.pop(context); // 🔥 back to login
+      Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       String msg = "Registration failed";
 
@@ -94,7 +94,7 @@ class _RegisterPageState extends State<RegisterPage> {
         SetOptions(merge: true),
       );
 
-      Navigator.pop(context); // 🔥 back to login
+      Navigator.pop(context);
     } catch (_) {
       showMsg("Google sign-up failed");
     }
@@ -105,109 +105,62 @@ class _RegisterPageState extends State<RegisterPage> {
         .showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  InputDecoration fieldStyle(
-    String label,
-    IconData icon, {
-    Widget? suffix,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      suffixIcon: suffix,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text("Register"),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context), // 🔥 back to login
+          onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("Register"),
       ),
       backgroundColor: Colors.grey.shade200,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Card(
-            elevation: 6,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration:
-                        fieldStyle("Name", Icons.person_outline),
-                  ),
-                  const SizedBox(height: 15),
-
-                  TextField(
-                    controller: emailController,
-                    decoration:
-                        fieldStyle("Email", Icons.email_outlined),
-                  ),
-                  const SizedBox(height: 15),
-
-                  TextField(
-                    controller: passwordController,
-                    obscureText: hidePassword,
-                    decoration: fieldStyle(
-                      "Password",
-                      Icons.lock_outline,
-                      suffix: IconButton(
-                        icon: Icon(
-                          hidePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            hidePassword = !hidePassword;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 25),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: loading ? null : registerUser,
-                      child: loading
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                          : const Text("Register"),
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // 🔹 GOOGLE ICON
-                  IconButton(
-                    iconSize: 30,
-                    
-                    icon: const FaIcon(
-                      FontAwesomeIcons.google,
-                      color: Colors.red,
-                    ),
-                    onPressed: googleRegister,
-                  ),
-                ],
+          child: authCard(
+            children: [
+              appTextField(
+                controller: nameController,
+                label: "Name",
+                icon: Icons.person_outline,
               ),
-            ),
+              const SizedBox(height: 15),
+
+              appTextField(
+                controller: emailController,
+                label: "Email",
+                icon: Icons.email_outlined,
+              ),
+              const SizedBox(height: 15),
+
+              appTextField(
+                controller: passwordController,
+                label: "Password",
+                icon: Icons.lock_outline,
+                obscure: hidePassword,
+                suffix: IconButton(
+                  icon: Icon(
+                    hidePassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () =>
+                      setState(() => hidePassword = !hidePassword),
+                ),
+              ),
+              const SizedBox(height: 25),
+
+              appButton(
+                text: "Register",
+                loading: loading,
+                onPressed: registerUser,
+              ),
+              const SizedBox(height: 18),
+
+              googleButton(googleRegister),
+            ],
           ),
         ),
       ),

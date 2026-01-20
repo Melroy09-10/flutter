@@ -18,7 +18,6 @@ class _AddProductPageState extends State<AddProductPage> {
   final List<String> imageUrls = [];
   bool loading = false;
 
-  // 🔹 Add image URL to list
   void addImage() {
     if (imageController.text.isEmpty) return;
 
@@ -27,7 +26,6 @@ class _AddProductPageState extends State<AddProductPage> {
     setState(() {});
   }
 
-  // 🔹 Add product to Firestore
   Future<void> addProduct() async {
     if (titleController.text.isEmpty ||
         priceController.text.isEmpty ||

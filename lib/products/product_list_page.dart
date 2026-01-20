@@ -8,7 +8,6 @@ import 'add_product_page.dart';
 class ProductListPage extends StatelessWidget {
   const ProductListPage({super.key});
 
-  // 🔴 CONFIRM & DELETE PRODUCT
   Future<void> confirmDeleteProduct(
       BuildContext context, String productId) async {
     final bool? confirm = await showDialog<bool>(
@@ -112,7 +111,7 @@ class ProductListPage extends StatelessWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ✏️ EDIT
+                      
                       IconButton(
                         icon:
                             const Icon(Icons.edit, color: Colors.blue),
@@ -127,7 +126,6 @@ class ProductListPage extends StatelessWidget {
                         },
                       ),
 
-                      // 🗑 DELETE (WITH CONFIRMATION)
                       IconButton(
                         icon:
                             const Icon(Icons.delete, color: Colors.red),

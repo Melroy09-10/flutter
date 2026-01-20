@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import './widgets/form_widgets.dart';
 import 'models/product_model.dart';
 
 class EditProductPage extends StatefulWidget {
@@ -11,6 +13,8 @@ class EditProductPage extends StatefulWidget {
 }
 
 class _EditProductPageState extends State<EditProductPage> {
+  final _formKey = GlobalKey<FormState>();
+
   late TextEditingController titleController;
   late TextEditingController priceController;
   late TextEditingController stockController;
@@ -30,36 +34,36 @@ class _EditProductPageState extends State<EditProductPage> {
     imageUrls = List<String>.from(widget.product.imageUrls);
   }
 
-  // ---------------- ADD IMAGE ----------------
   void addImage() {
-    if (imageController.text.trim().isEmpty) return;
+    final url = imageController.text.trim();
+    if (url.isEmpty) {
+      showMsg("Image URL cannot be empty");
+      return;
+    }
 
     setState(() {
-      imageUrls.add(imageController.text.trim());
+      imageUrls.add(url);
       imageController.clear();
     });
   }
 
-  // ---------------- CONFIRM IMAGE DELETE ----------------
   void confirmDeleteImage(int index) async {
-    final bool? confirm = await showDialog<bool>(
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Delete Image"),
-          content: const Text("Are you sure you want to delete this image?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("No"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Yes"),
-            ),
-          ],
-        );
-      },
+      builder: (_) => AlertDialog(
+        title: const Text("Delete Image"),
+        content: const Text("Are you sure you want to delete this image?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("No"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Yes"),
+          ),
+        ],
+      ),
     );
 
     if (confirm == true) {
@@ -69,26 +73,30 @@ class _EditProductPageState extends State<EditProductPage> {
     }
   }
 
-  // ---------------- CONFIRM UPDATE ----------------
   void confirmUpdateProduct() async {
-    final bool? confirm = await showDialog<bool>(
+    if (!_formKey.currentState!.validate()) return;
+
+    if (imageUrls.isEmpty) {
+      showMsg("Please add at least one product image");
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Update Product"),
-          content: const Text("Do you want to save the changes?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("No"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Yes"),
-            ),
-          ],
-        );
-      },
+      builder: (_) => AlertDialog(
+        title: const Text("Update Product"),
+        content: const Text("Do you want to save the changes?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("No"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Yes"),
+          ),
+        ],
+      ),
     );
 
     if (confirm == true) {
@@ -96,7 +104,6 @@ class _EditProductPageState extends State<EditProductPage> {
     }
   }
 
-  // ---------------- UPDATE PRODUCT ----------------
   Future<void> updateProduct() async {
     setState(() => loading = true);
 
@@ -105,14 +112,17 @@ class _EditProductPageState extends State<EditProductPage> {
         .doc(widget.product.id)
         .update({
       'title': titleController.text.trim(),
-      'price': double.parse(priceController.text),
-      'stock': int.parse(stockController.text),
+      'price': double.parse(priceController.text.trim()),
+      'stock': int.parse(stockController.text.trim()),
       'imageUrls': imageUrls,
     });
 
-    if (mounted) {
-      Navigator.pop(context);
-    }
+    if (mounted) Navigator.pop(context);
+  }
+
+  void showMsg(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -121,125 +131,142 @@ class _EditProductPageState extends State<EditProductPage> {
       appBar: AppBar(title: const Text("Edit Product")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // -------- BASIC INFO --------
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(labelText: "Product Title"),
-            ),
-            const SizedBox(height: 10),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              appTextFormField(
+                controller: titleController,
+                label: "Product Title",
+                validator: (v) =>
+                    v == null || v.trim().isEmpty
+                        ? "Product title is required"
+                        : null,
+              ),
+              const SizedBox(height: 12),
 
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Price"),
-            ),
-            const SizedBox(height: 10),
+              appTextFormField(
+                controller: priceController,
+                label: "Price",
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  final price = double.tryParse(v ?? "");
+                  if (price == null || price <= 0) {
+                    return "Enter a valid price (> 0)";
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
 
-            TextField(
-              controller: stockController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Stock"),
-            ),
-
-            const SizedBox(height: 20),
-
-            // -------- ADD IMAGE --------
-            const Text(
-              "Add New Image",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: imageController,
-                    decoration:
-                        const InputDecoration(labelText: "Image URL"),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: addImage,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // -------- IMAGE GRID --------
-            const Text(
-              "Product Images",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            if (imageUrls.isEmpty)
-              const Text("No images added"),
-
-            if (imageUrls.isNotEmpty)
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: imageUrls.length,
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemBuilder: (context, index) {
-                  return Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Image.network(
-                          imageUrls[index],
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.broken_image),
-                        ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: Colors.black54,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(
-                              Icons.delete,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                            onPressed: () =>
-                                confirmDeleteImage(index),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
+              appTextFormField(
+                controller: stockController,
+                label: "Stock",
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  final stock = int.tryParse(v ?? "");
+                  if (stock == null || stock < 0) {
+                    return "Stock must be 0 or more";
+                  }
+                  return null;
                 },
               ),
 
-            const SizedBox(height: 30),
-
-            // -------- UPDATE BUTTON --------
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: loading ? null : confirmUpdateProduct,
-                child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Update Product"),
+              const SizedBox(height: 6),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: stockController,
+                builder: (context, value, _) {
+                  final stock = int.tryParse(value.text) ?? 0;
+                  return stockStatus(stock);
+                },
               ),
-            ),
-          ],
+
+              const SizedBox(height: 24),
+
+              sectionTitle("Add New Image"),
+              const SizedBox(height: 8),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: imageController,
+                      decoration: const InputDecoration(
+                        labelText: "Image URL",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: addImage,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              sectionTitle("Product Images"),
+              const SizedBox(height: 10),
+
+              if (imageUrls.isEmpty)
+                const Text("No images added"),
+
+              if (imageUrls.isNotEmpty)
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: imageUrls.length,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemBuilder: (context, index) {
+                    return Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Image.network(
+                            imageUrls[index],
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.broken_image),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Colors.black54,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(
+                                Icons.delete,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                              onPressed: () =>
+                                  confirmDeleteImage(index),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+              const SizedBox(height: 30),
+
+              appPrimaryButton(
+                text: "Update Product",
+                loading: loading,
+                onPressed: loading ? null : confirmUpdateProduct,
+              ),
+            ],
+          ),
         ),
       ),
     );
