@@ -110,8 +110,10 @@ class ProfilePage extends StatelessWidget {
       builder: (_) => AlertDialog(
         title: const Text("Reset Password"),
         content: const Text(
-          "A password reset email will be sent to your registered email.",
-        ),
+  "A password reset email will be sent to your registered email.\n\n"
+  "If you don’t see the email, please check your Spam or Promotions folder.",
+),
+
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
