@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'models/product_model.dart';
+
+import '../services/notification_service.dart';
 
 class AddProductPage extends StatefulWidget {
   const AddProductPage({super.key});
@@ -18,18 +19,20 @@ class _AddProductPageState extends State<AddProductPage> {
   final List<String> imageUrls = [];
   bool loading = false;
 
+  // ---------------- ADD IMAGE ----------------
   void addImage() {
-    if (imageController.text.isEmpty) return;
+    if (imageController.text.trim().isEmpty) return;
 
     imageUrls.add(imageController.text.trim());
     imageController.clear();
     setState(() {});
   }
 
+  // ---------------- ADD PRODUCT ----------------
   Future<void> addProduct() async {
-    if (titleController.text.isEmpty ||
-        priceController.text.isEmpty ||
-        stockController.text.isEmpty ||
+    if (titleController.text.trim().isEmpty ||
+        priceController.text.trim().isEmpty ||
+        stockController.text.trim().isEmpty ||
         imageUrls.isEmpty) {
       showMsg("Fill all fields and add at least one image");
       return;
@@ -37,34 +40,51 @@ class _AddProductPageState extends State<AddProductPage> {
 
     setState(() => loading = true);
 
-    final product = ProductModel(
-      id: '',
-      title: titleController.text.trim(),
-      price: double.parse(priceController.text),
-      stock: int.parse(stockController.text),
-      imageUrls: imageUrls,
-    );
+    try {
+      final String productName = titleController.text.trim();
+      final double price = double.parse(priceController.text.trim());
+      final int stock = int.parse(stockController.text.trim());
+      final String productImageUrl = imageUrls.first;
 
-    await FirebaseFirestore.instance
-        .collection('products')
-        .add(product.toMap());
+      // 🔥 SAVE PRODUCT TO FIRESTORE
+      await FirebaseFirestore.instance.collection('products').add({
+        'name': productName,
+        'price': price,
+        'stock': stock,
+        'images': imageUrls,
+        'createdAt': Timestamp.now(),
+      });
 
-    showMsg("Product added successfully");
+      // 🔔 SEND NOTIFICATION
+      await NotificationService.sendNewProductNotification(
+        productName: productName,
+        productImageUrl: productImageUrl,
+      );
 
-    titleController.clear();
-    priceController.clear();
-    stockController.clear();
-    imageController.clear();
-    imageUrls.clear();
+      showMsg("Product added successfully");
 
-    setState(() => loading = false);
+      // 🔄 CLEAR FORM
+      titleController.clear();
+      priceController.clear();
+      stockController.clear();
+      imageUrls.clear();
+
+      setState(() {});
+    } catch (e) {
+      showMsg("Error adding product");
+      debugPrint(e.toString());
+    } finally {
+      setState(() => loading = false);
+    }
   }
 
+  // ---------------- MESSAGE ----------------
   void showMsg(String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,7 +141,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
             const SizedBox(height: 10),
 
-            // -------- IMAGE PREVIEW GRID --------
+            // -------- IMAGE PREVIEW --------
             if (imageUrls.isNotEmpty)
               GridView.builder(
                 shrinkWrap: true,
@@ -140,8 +160,6 @@ class _AddProductPageState extends State<AddProductPage> {
                         child: Image.network(
                           imageUrls[index],
                           fit: BoxFit.cover,
-
-                          // 🔥 IMPORTANT FOR WEB (CORS-safe)
                           errorBuilder: (_, __, ___) => Container(
                             color: Colors.grey.shade300,
                             child: const Icon(Icons.broken_image),
@@ -176,7 +194,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
             const SizedBox(height: 25),
 
-            // -------- ADD PRODUCT BUTTON --------
+            // -------- ADD BUTTON --------
             SizedBox(
               width: double.infinity,
               height: 48,

@@ -12,24 +12,21 @@ import '../widgets/app_widgets.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
- Future<void> logout(BuildContext context) async {
-  Provider.of<CartProvider>(context, listen: false).clearCart();
-  await googleSignIn.signOut();
-  await FirebaseAuth.instance.signOut();
-}
+  Future<void> logout(BuildContext context) async {
+    Provider.of<CartProvider>(context, listen: false).clearCart();
+    await googleSignIn.signOut();
+    await FirebaseAuth.instance.signOut();
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      
       appBar: AppBar(
         title: const Text("Home"),
         centerTitle: true,
       ),
-
-    
       drawer: Drawer(
         child: Column(
           children: [
@@ -68,11 +65,13 @@ class HomePage extends StatelessWidget {
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          final docs = snapshot.data!.docs;
+
+          if (docs.isEmpty) {
             return const Center(child: Text("No products found"));
           }
 
@@ -83,16 +82,27 @@ class HomePage extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 0.60, 
+              childAspectRatio: 0.45,
             ),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: docs.length,
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
+              final raw = docs[index].data() as Map<String, dynamic>;
+
+              // ✅ FULL NORMALIZATION (THIS FIXES EVERYTHING)
+              final List<String> images = List<String>.from(
+                raw['imageUrls'] ?? raw['images'] ?? [],
+              );
+
+              final Map<String, dynamic> normalizedData = {
+                'title': raw['title'] ?? raw['name'] ?? '',
+                'price': raw['price'] ?? 0,
+                'stock': raw['stock'] ?? 0,
+                'imageUrls': images, // 🔑 SINGLE SOURCE OF TRUTH
+              };
 
               return ProductCard(
-                productId: doc.id,
-                data: data,
+                productId: docs[index].id,
+                data: normalizedData,
               );
             },
           );

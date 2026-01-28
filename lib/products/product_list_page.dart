@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'models/product_model.dart';
-import 'edit_product_page.dart';
-import 'add_product_page.dart';
 
+import 'add_product_page.dart';
+import 'edit_product_page.dart';
+import 'models/product_model.dart';
 
 class ProductListPage extends StatelessWidget {
   const ProductListPage({super.key});
@@ -68,27 +68,45 @@ class ProductListPage extends StatelessWidget {
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final docs = snapshot.data!.docs;
-
-          if (docs.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text("No products found"));
           }
+
+          final docs = snapshot.data!.docs;
 
           return ListView.builder(
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final doc = docs[index];
+              final data = doc.data() as Map<String, dynamic>;
+
+              // 🔒 SAFE FIELD READING (NO CRASH)
+              final String title =
+                  (data['title'] ?? data['name'] ?? '').toString();
+
+              final double price =
+                  (data['price'] as num?)?.toDouble() ?? 0.0;
+
+              final int stock =
+                  (data['stock'] as num?)?.toInt() ?? 0;
+
+              final List<String> imageUrls =
+                  List<String>.from(
+                    data['imageUrls'] ??
+                        data['images'] ??
+                        [],
+                  );
 
               final product = ProductModel(
                 id: doc.id,
-                title: doc['title'],
-                price: (doc['price']).toDouble(),
-                stock: doc['stock'],
-                imageUrls: List<String>.from(doc['imageUrls']),
+                title: title,
+                price: price,
+                stock: stock,
+                imageUrls: imageUrls,
               );
 
               return Card(
@@ -97,21 +115,26 @@ class ProductListPage extends StatelessWidget {
                   leading: SizedBox(
                     width: 60,
                     height: 60,
-                    child: Image.network(
-                      product.imageUrls.first,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.broken_image),
-                    ),
+                    child: imageUrls.isNotEmpty
+                        ? Image.network(
+                            imageUrls.first,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.broken_image),
+                          )
+                        : const Icon(Icons.image_not_supported),
                   ),
-                  title: Text(product.title),
+                  title: Text(
+                    product.title.isNotEmpty
+                        ? product.title
+                        : "Unnamed Product",
+                  ),
                   subtitle: Text(
                     "₹${product.price} | Stock: ${product.stock}",
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      
                       IconButton(
                         icon:
                             const Icon(Icons.edit, color: Colors.blue),
@@ -125,7 +148,6 @@ class ProductListPage extends StatelessWidget {
                           );
                         },
                       ),
-
                       IconButton(
                         icon:
                             const Icon(Icons.delete, color: Colors.red),

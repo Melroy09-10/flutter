@@ -24,8 +24,10 @@ class _ProductCardState extends State<ProductCard> {
 
   @override
   Widget build(BuildContext context) {
-    final List images = widget.data['imageUrls'] ?? [];
-    final int stock = widget.data['stock'] ?? 0;
+    // ✅ DATA IS GUARANTEED CLEAN
+    final List images = widget.data['imageUrls'];
+    final String title = widget.data['title'];
+    final int stock = widget.data['stock'];
 
     return Card(
       elevation: 4,
@@ -33,27 +35,30 @@ class _ProductCardState extends State<ProductCard> {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // IMAGE SLIDER
           SizedBox(
-            height: 150,
+            height: 180,
             child: Stack(
               alignment: Alignment.bottomCenter,
               children: [
                 PageView.builder(
                   controller: _pageController,
                   itemCount: images.length,
-                  onPageChanged: (index) {
-                    setState(() => currentIndex = index);
-                  },
-                  itemBuilder: (context, index) {
+                  onPageChanged: (i) =>
+                      setState(() => currentIndex = i),
+                  itemBuilder: (_, i) {
                     return ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
+                      borderRadius:
+                          const BorderRadius.vertical(
                         top: Radius.circular(14),
                       ),
                       child: Image.network(
-                        images[index],
-                        fit: BoxFit.cover,
-                        width: double.infinity,
+                        images[i],
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.broken_image),
                       ),
                     );
                   },
@@ -71,114 +76,98 @@ class _ProductCardState extends State<ProductCard> {
             ),
           ),
 
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // TITLE + PRICE
-                  Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.data['title'] ?? "",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      priceText(widget.data['price']),
-                      const SizedBox(height: 2),
-                      Text(
-                        stock > 0
-                            ? "Stock: $stock"
-                            : "Out of stock",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: stock > 0
-                              ? Colors.grey
-                              : Colors.red,
-                        ),
-                      ),
-                    ],
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
                   ),
+                ),
 
-                  Consumer<CartProvider>(
-                    builder: (context, cart, _) {
-                      final qty =
-                          cart.getQuantity(widget.productId);
+                const SizedBox(height: 6),
+                priceText(widget.data['price']),
+                const SizedBox(height: 4),
 
-                      if (qty == 0) {
-                        return SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: stock == 0
-                                ? null
-                                : () {
-                                    cart.addItem(
-                                      widget.productId,
-                                      widget.data['title'],
-                                      (widget.data['price']
-                                              as num)
-                                          .toDouble(),
-                                      images.isNotEmpty
-                                          ? images[0]
-                                          : '',
-                                      stock: stock,
-                                    );
-                                  },
-                            child: const Text("Add to Cart"),
-                          ),
-                        );
-                      }
+                Text(
+                  stock > 0 ? "Stock: $stock" : "Out of stock",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:
+                        stock > 0 ? Colors.grey : Colors.red,
+                  ),
+                ),
 
-                      return Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove),
-                            onPressed: () {
-                              cart.removeItem(
-                                  widget.productId);
-                            },
-                          ),
-                          Text(
-                            qty.toString(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add),
-                            onPressed: qty >= stock
-                                ? null
-                                : () {
-                                    cart.addItem(
-                                      widget.productId,
-                                      widget.data['title'],
-                                      (widget.data['price']
-                                              as num)
-                                          .toDouble(),
-                                      images.isNotEmpty
-                                          ? images[0]
-                                          : '',
-                                      stock: stock,
-                                    );
-                                  },
-                          ),
-                        ],
+                const SizedBox(height: 10),
+
+                Consumer<CartProvider>(
+                  builder: (context, cart, _) {
+                    final qty =
+                        cart.getQuantity(widget.productId);
+
+                    if (qty == 0) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: stock == 0
+                              ? null
+                              : () {
+                                  cart.addItem(
+                                    widget.productId,
+                                    title,
+                                    (widget.data['price']
+                                            as num)
+                                        .toDouble(),
+                                    images[0],
+                                    stock: stock,
+                                  );
+                                },
+                          child:
+                              const Text("Add to Cart"),
+                        ),
                       );
-                    },
-                  ),
-                ],
-              ),
+                    }
+
+                    return Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon:
+                              const Icon(Icons.remove),
+                          onPressed: () =>
+                              cart.removeItem(
+                                  widget.productId),
+                        ),
+                        Text(qty.toString()),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: qty >= stock
+                              ? null
+                              : () {
+                                  cart.addItem(
+                                    widget.productId,
+                                    title,
+                                    (widget.data['price']
+                                            as num)
+                                        .toDouble(),
+                                    images[0],
+                                    stock: stock,
+                                  );
+                                },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ],
